@@ -1,6 +1,6 @@
-/*******************************************************************************
- * sdrtrunk
- * Copyright (C) 2014-2016 Dennis Sheirer
+/*
+ * *****************************************************************************
+ * Copyright (C) 2014-2022 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,15 +14,14 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
- ******************************************************************************/
+ * ****************************************************************************
+ */
 package io.github.dsheirer.audio.convert;
 
-import io.github.dsheirer.audio.AudioFormats;
 import io.github.dsheirer.audio.AudioUtils;
+import io.github.dsheirer.dsp.filter.resample.RealResampler;
 import net.sourceforge.lame.lowlevel.LameEncoder;
 import net.sourceforge.lame.mp3.Lame;
-import net.sourceforge.lame.mp3.MPEGMode;
 import org.apache.commons.math3.util.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,19 +35,24 @@ public class MP3AudioConverter implements IAudioConverter
     private final static Logger mLog = LoggerFactory.getLogger( MP3AudioConverter.class );
     public static final int AUDIO_QUALITY = Lame.QUALITY_LOW;
     private LameEncoder mEncoder;
+    private RealResampler mResampler;
     private ByteArrayOutputStream mMP3Stream = new ByteArrayOutputStream();
     private byte[] mMP3Buffer;
 
     /**
-     * Converts PCM 8kHz 16-bit Little Endian audio packets to Mono, Low Quality MP3 compressed audio.
+     * Converts PCM 16-bit Little Endian audio packets to Mono, MP3 compressed audio.
      *
-     * @param bitRate for converted MP3 audio
-     * @param variableBitRate (VBR) true or false for constant bit rate (CBR)
+     * @param audioSampleRate for the desired input sample rate (resampled from default 8 kHz as needed)
+     * @param setting to configure the LAME encoder
      */
-    public MP3AudioConverter(int bitRate, boolean variableBitRate)
+    public MP3AudioConverter(AudioSampleRate audioSampleRate, MP3Setting setting)
     {
-        mEncoder = new LameEncoder(AudioFormats.PCM_SIGNED_8KHZ_16BITS_MONO,
-                bitRate, MPEGMode.MONO, AUDIO_QUALITY, variableBitRate);
+        mEncoder = LameFactory.getLameEncoder(audioSampleRate, setting);
+
+        if(audioSampleRate != AudioSampleRate.SR_8000)
+        {
+            mResampler = LameFactory.getResampler(audioSampleRate);
+        }
 
         mMP3Buffer = new byte[mEncoder.getPCMBufferSize()];
     }
@@ -57,6 +61,11 @@ public class MP3AudioConverter implements IAudioConverter
     public byte[] convert(List<float[]> audioPackets)
     {
         mMP3Stream.reset();
+
+        if(mResampler != null)
+        {
+            audioPackets = mResampler.resample(audioPackets);
+        }
 
         byte[] pcmBytes = AudioUtils.convertTo16BitSamples(audioPackets);
 

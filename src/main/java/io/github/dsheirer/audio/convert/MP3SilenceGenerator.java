@@ -1,6 +1,6 @@
-/*******************************************************************************
- * sdrtrunk
- * Copyright (C) 2014-2016 Dennis Sheirer
+/*
+ * *****************************************************************************
+ * Copyright (C) 2014-2022 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
- ******************************************************************************/
+ * ****************************************************************************
+ */
 package io.github.dsheirer.audio.convert;
 
 import org.slf4j.Logger;
@@ -31,19 +31,28 @@ public class MP3SilenceGenerator implements ISilenceGenerator
     public static final int MP3_BIT_RATE = 16;
     public static final boolean CONSTANT_BIT_RATE = false;
 
-    private MP3AudioConverter mGenerator = new MP3AudioConverter(MP3_BIT_RATE, CONSTANT_BIT_RATE);
+    private MP3AudioConverter mGenerator;
+    private AudioSampleRate mAudioSampleRate;
     private byte[] mPreviousPartialFrameData;
 
     /**
      * Generates MP3 audio silence frames
      */
-    public MP3SilenceGenerator()
+    public MP3SilenceGenerator(AudioSampleRate audioSampleRate, MP3Setting setting)
     {
+        mAudioSampleRate = audioSampleRate;
+        mGenerator = new MP3AudioConverter(audioSampleRate, setting);
     }
 
-    public byte[] generate(long duration)
+    /**
+     * Generates silence frames
+     * @param duration_ms in milliseconds
+     * @return
+     */
+    public byte[] generate(long duration_ms)
     {
-        int length = (int)(duration * 8);   //8000 Hz sample rate
+        double duration_secs = (double)duration_ms / 1000.0;
+        int length = (int)(duration_secs * mAudioSampleRate.getSampleRate());
 
         List<float[]> silenceBuffers = new ArrayList<>();
         silenceBuffers.add(new float[length]);
@@ -102,7 +111,7 @@ public class MP3SilenceGenerator implements ISilenceGenerator
 
         for(long x = 243; x < 500; x ++)
         {
-            MP3SilenceGenerator generator = new MP3SilenceGenerator();
+            MP3SilenceGenerator generator = new MP3SilenceGenerator(AudioSampleRate.SR_8000, MP3Setting.CBR_16);
 
             byte[] silence = generator.generate(x);
 

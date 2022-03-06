@@ -1,3 +1,22 @@
+/*
+ * *****************************************************************************
+ * Copyright (C) 2014-2022 Dennis Sheirer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ * ****************************************************************************
+ */
+
 package io.github.dsheirer.audio;
 
 import javax.sound.sampled.AudioFormat;
@@ -16,6 +35,8 @@ public class AudioFormats
 	public static final float IMBE_FRAME_RATE = 50;
 	public static final float IMBE_SAMPLE_RATE = 50;
 	public static final float PCM_8KHZ_RATE = 8000;
+	public static final float PCM_22050HZ_RATE = 22050;
+	public static final float PCM_44100HZ_RATE = 44100;
 	public static final float PCM_48KHZ_RATE = 48000;
 	
 	public static final int IMBE_FRAME_SIZE_BYTES = 18;
@@ -43,6 +64,24 @@ public class AudioFormats
 								 PCM_FRAME_SIZE_BYTES_MONO, 
 								 PCM_8KHZ_RATE,
 								 LITTLE_ENDIAN );
+
+	public static AudioFormat PCM_SIGNED_22050HZ_16BITS_MONO =
+			new AudioFormat( AudioFormat.Encoding.PCM_SIGNED,
+					PCM_22050HZ_RATE,
+					PCM_SAMPLE_SIZE_BITS,
+					ONE_CHANNEL,
+					PCM_FRAME_SIZE_BYTES_MONO,
+					PCM_22050HZ_RATE,
+					LITTLE_ENDIAN );
+
+	public static AudioFormat PCM_SIGNED_44100HZ_16BITS_MONO =
+			new AudioFormat( AudioFormat.Encoding.PCM_SIGNED,
+					PCM_44100HZ_RATE,
+					PCM_SAMPLE_SIZE_BITS,
+					ONE_CHANNEL,
+					PCM_FRAME_SIZE_BYTES_MONO,
+					PCM_44100HZ_RATE,
+					LITTLE_ENDIAN );
 
 	public static AudioFormat PCM_SIGNED_8KHZ_16BITS_STEREO =
 			new AudioFormat( AudioFormat.Encoding.PCM_SIGNED,
