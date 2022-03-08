@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -96,14 +97,20 @@ public class AudioSegmentRecorder
             MP3Setting mp3Setting = userPreferences.getMP3Preference().getMP3Setting();
 
             MP3AudioConverter converter = new MP3AudioConverter(audioSampleRate, mp3Setting);
-            byte[] mp3 = converter.convertAudio(audioSegment.getAudioBuffers());
-            outputStream.write(mp3);
-
-            byte[] lastFrame = converter.flush();
-
-            if(lastFrame != null && lastFrame.length > 0)
+            List<byte[]> mp3Frames = converter.convert(audioSegment.getAudioBuffers());
+            for(byte[] mp3Frame: mp3Frames)
             {
-                outputStream.write(lastFrame);
+                outputStream.write(mp3Frame);
+            }
+
+            List<byte[]> lastFrames = converter.flush();
+
+            if(!lastFrames.isEmpty())
+            {
+                for(byte[] lastFrame: lastFrames)
+                {
+                    outputStream.write(lastFrame);
+                }
             }
 
             outputStream.flush();

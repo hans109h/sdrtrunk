@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class MP3SilenceGenerator implements ISilenceGenerator
@@ -31,7 +30,7 @@ public class MP3SilenceGenerator implements ISilenceGenerator
     public static final int MP3_BIT_RATE = 16;
     public static final boolean CONSTANT_BIT_RATE = false;
 
-    private MP3AudioConverter mGenerator;
+    private MP3AudioConverter mMP3AudioConverter;
     private AudioSampleRate mAudioSampleRate;
     private byte[] mPreviousPartialFrameData;
 
@@ -41,7 +40,7 @@ public class MP3SilenceGenerator implements ISilenceGenerator
     public MP3SilenceGenerator(AudioSampleRate audioSampleRate, MP3Setting setting)
     {
         mAudioSampleRate = audioSampleRate;
-        mGenerator = new MP3AudioConverter(audioSampleRate, setting);
+        mMP3AudioConverter = new MP3AudioConverter(audioSampleRate, setting);
     }
 
     /**
@@ -49,38 +48,26 @@ public class MP3SilenceGenerator implements ISilenceGenerator
      * @param duration_ms in milliseconds
      * @return
      */
-    public byte[] generate(long duration_ms)
+    public List<byte[]> generate(long duration_ms)
     {
         double duration_secs = (double)duration_ms / 1000.0;
-        int length = (int)(duration_secs * mAudioSampleRate.getSampleRate());
+
+        //We generate silence at 8000 kHz, because it gets resampled by the silence generator to the target rate
+        int length = (int)(duration_secs * AudioSampleRate.SR_8000.getSampleRate());
 
         List<float[]> silenceBuffers = new ArrayList<>();
-        silenceBuffers.add(new float[length]);
-        byte[] frameData = mGenerator.convert(silenceBuffers);
 
-        frameData = merge(mPreviousPartialFrameData, frameData);
-
-        if(frameData != null && frameData.length > 0)
+        int added = 0;
+        while(added < length)
         {
-            if(frameData.length < 144)
-            {
-                mPreviousPartialFrameData = frameData;
-                return null;
-            }
-            else if((frameData.length % 144) == 0)
-            {
-                mPreviousPartialFrameData = null;
-                return frameData;
-            }
-            else
-            {
-                int integralFrameLength = (int)(frameData.length / 144) * 144;
-                mPreviousPartialFrameData = Arrays.copyOfRange(frameData, integralFrameLength, frameData.length);
-                return Arrays.copyOf(frameData, integralFrameLength);
-            }
+            int chunk = Math.min(length - added, 256);
+            silenceBuffers.add(new float[chunk]);
+            added += chunk;
         }
 
-        return null;
+        mLog.debug("Generated [" + silenceBuffers.size() + "] raw silence buffers.  Converting ...");
+
+        return mMP3AudioConverter.convert(silenceBuffers);
     }
 
     private static byte[] merge(byte[] a, byte[] b)
@@ -109,18 +96,23 @@ public class MP3SilenceGenerator implements ISilenceGenerator
     {
         mLog.debug("Starting ...");
 
-        for(long x = 243; x < 500; x ++)
+        MP3SilenceGenerator generator = new MP3SilenceGenerator(AudioSampleRate.SR_22050, MP3Setting.CBR_16);
+
+        int x = 100;
+
+//        for(; x < 1000; x += 10)
+//        {
+        List<byte[]> silenceFrames = generator.generate(x);
+
+        mLog.debug("Generated [" + silenceFrames.size() + "] silence frames");
+
+        for(byte[] silence: silenceFrames)
         {
-            MP3SilenceGenerator generator = new MP3SilenceGenerator(AudioSampleRate.SR_8000, MP3Setting.CBR_16);
-
-            byte[] silence = generator.generate(x);
-
-            if(silence != null && silence.length > 0)
-            {
-                mLog.debug("Silence:" + x + " Length:" + silence.length);
-                MP3FrameInspector.inspect(silence);
-            }
+            mLog.debug("Silence:" + x + " Length:" + silence.length);
         }
+
+        MP3FrameInspector.inspect(silenceFrames);
+//        }
 
         mLog.debug("Finished");
     }

@@ -18,8 +18,8 @@
  */
 package io.github.dsheirer.audio.convert;
 
-import io.github.dsheirer.audio.AudioUtils;
 import io.github.dsheirer.dsp.filter.resample.RealResampler;
+import io.github.dsheirer.sample.ConversionUtils;
 import net.sourceforge.lame.lowlevel.LameEncoder;
 import net.sourceforge.lame.mp3.Lame;
 import org.apache.commons.math3.util.FastMath;
@@ -27,7 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class MP3AudioConverter implements IAudioConverter
@@ -36,8 +38,8 @@ public class MP3AudioConverter implements IAudioConverter
     public static final int AUDIO_QUALITY = Lame.QUALITY_LOW;
     private LameEncoder mEncoder;
     private RealResampler mResampler;
-    private ByteArrayOutputStream mMP3Stream = new ByteArrayOutputStream();
-    private byte[] mMP3Buffer;
+    private ByteArrayOutputStream mMP3EncodedFramesStream = new ByteArrayOutputStream();
+    private byte[] mOutputFramesBuffer;
 
     /**
      * Converts PCM 16-bit Little Endian audio packets to Mono, MP3 compressed audio.
@@ -54,82 +56,78 @@ public class MP3AudioConverter implements IAudioConverter
             mResampler = LameFactory.getResampler(audioSampleRate);
         }
 
-        mMP3Buffer = new byte[mEncoder.getPCMBufferSize()];
+        mOutputFramesBuffer = new byte[mEncoder.getPCMBufferSize()];
     }
 
-    @Override
-    public byte[] convert(List<float[]> audioPackets)
+    public List<byte[]> convert(List<float[]> audioPackets)
     {
-        mMP3Stream.reset();
+        List<byte[]> converted = new ArrayList<>();
 
         if(mResampler != null)
         {
             audioPackets = mResampler.resample(audioPackets);
         }
 
-        byte[] pcmBytes = AudioUtils.convertTo16BitSamples(audioPackets);
+        mLog.debug("Resampled to [" + audioPackets.size() + "] audio packets");
 
-        int pcmBufferSize = FastMath.min(mMP3Buffer.length, pcmBytes.length);
-
-        int mp3BufferSize = 0;
-
-        int pcmBytesPosition = 0;
-
-        try
+        for(int x = 0; x < audioPackets.size(); x++)
         {
-            while (0 < (mp3BufferSize = mEncoder.encodeBuffer(pcmBytes, pcmBytesPosition, pcmBufferSize, mMP3Buffer)))
+            byte[] bytesToEncode = ConversionUtils.convertToSigned16BitSamples(audioPackets.get(x)).array();
+            mLog.debug("Bytes To Encode: " + bytesToEncode.length);
+            int bytesToEncodePointer = 0;
+
+            int inputChunkSize = FastMath.min(mOutputFramesBuffer.length, bytesToEncode.length);
+            int outputChunkSize = 0;
+
+            mLog.debug("Input Chunk Size: " + inputChunkSize);
+            try
             {
-                pcmBytesPosition += pcmBufferSize;
-                pcmBufferSize = FastMath.min(mMP3Buffer.length, pcmBytes.length - pcmBytesPosition);
-                mMP3Stream.write(mMP3Buffer, 0, mp3BufferSize);
+                while(bytesToEncodePointer < bytesToEncode.length)
+                {
+                    outputChunkSize = mEncoder.encodeBuffer(bytesToEncode, bytesToEncodePointer, inputChunkSize, mOutputFramesBuffer);
+                    bytesToEncodePointer += inputChunkSize;
+                    inputChunkSize = FastMath.min(mOutputFramesBuffer.length, bytesToEncode.length - bytesToEncodePointer);
+
+                    mLog.debug("Output Chunk Size: " + outputChunkSize);
+
+                    if(outputChunkSize > 0)
+                    {
+                        converted.add(Arrays.copyOf(mOutputFramesBuffer, outputChunkSize));
+                        mLog.debug("Output Chunk Size: " + outputChunkSize);
+                    }
+                }
             }
-
-            return mMP3Stream.toByteArray();
-        }
-        catch(Exception e)
-        {
-            mLog.error("There was an error converting audio to MP3: " + e.getMessage());
-            return new byte[0];
-        }
-    }
-
-    public byte[] convertAudio(List<float[]> audioBuffers)
-    {
-        mMP3Stream.reset();
-
-        byte[] pcmBytes = AudioUtils.convert(audioBuffers);
-
-        int pcmBufferSize = FastMath.min(mMP3Buffer.length, pcmBytes.length);
-
-        int mp3BufferSize = 0;
-
-        int pcmBytesPosition = 0;
-
-        try
-        {
-            while (0 < (mp3BufferSize = mEncoder.encodeBuffer(pcmBytes, pcmBytesPosition, pcmBufferSize, mMP3Buffer)))
+            catch(Exception e)
             {
-                pcmBytesPosition += pcmBufferSize;
-                pcmBufferSize = FastMath.min(mMP3Buffer.length, pcmBytes.length - pcmBytesPosition);
-                mMP3Stream.write(mMP3Buffer, 0, mp3BufferSize);
+                mLog.error("There was an error converting audio to MP3: " + e.getMessage());
             }
+        }
 
-            return mMP3Stream.toByteArray();
-        }
-        catch(Exception e)
+        int finalChunkSize = mEncoder.encodeFinish(mOutputFramesBuffer);
+
+        if(finalChunkSize > 0)
         {
-            mLog.error("There was an error converting audio to MP3: " + e.getMessage());
-            return new byte[0];
+            converted.add(Arrays.copyOf(mOutputFramesBuffer, finalChunkSize));
+            mLog.debug("Final Output Chunk Size: " + finalChunkSize);
         }
+
+        return converted;
     }
 
     @Override
-    public byte[] flush()
+    public List<byte[]> flush()
     {
         byte[] lastPartialFrame = new byte[mEncoder.getMP3BufferSize()];
 
         int length = mEncoder.encodeFinish(lastPartialFrame);
 
-        return Arrays.copyOf(lastPartialFrame, length);
+        byte[] frame = Arrays.copyOf(lastPartialFrame, length);
+
+        if(frame.length == 0)
+        {
+            return Collections.emptyList();
+        }
+
+        return Collections.singletonList(frame);
     }
 }

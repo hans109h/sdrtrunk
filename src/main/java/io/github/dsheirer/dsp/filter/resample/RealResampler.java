@@ -64,6 +64,7 @@ public class RealResampler
     public List<float[]> resample(List<float[]> audioPackets)
     {
         List<float[]> resampled = new ArrayList<>();
+
         mResampledListener = resampledAudio -> resampled.add(resampledAudio);
 
         for(int x = 0; x < audioPackets.size(); x++)

@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ScheduledFuture;
@@ -279,7 +280,13 @@ public abstract class AudioStreamingBroadcaster<T extends BroadcastConfiguration
                     {
                         if(mFinalSilencePadding > 0)
                         {
-                            broadcastAudio(mSilenceGenerator.generate(mFinalSilencePadding));
+                            List<byte[]> finalSilence = mSilenceGenerator.generate(mFinalSilencePadding);
+
+                            for(byte[] silence: finalSilence)
+                            {
+                                broadcastAudio(silence);
+                            }
+
                             mFinalSilencePadding = 0;
                         }
 
@@ -312,7 +319,11 @@ public abstract class AudioStreamingBroadcaster<T extends BroadcastConfiguration
                     }
                     else
                     {
-                        broadcastAudio(mSilenceGenerator.generate(PROCESSOR_RUN_INTERVAL_MS));
+                        List<byte[]> silenceFrames = mSilenceGenerator.generate(PROCESSOR_RUN_INTERVAL_MS);
+                        for(byte[] silence: silenceFrames)
+                        {
+                            broadcastAudio(silence);
+                        }
                     }
                 }
                 catch(Throwable t)

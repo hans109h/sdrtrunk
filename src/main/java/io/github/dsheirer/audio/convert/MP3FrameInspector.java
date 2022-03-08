@@ -21,32 +21,39 @@ package io.github.dsheirer.audio.convert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 public class MP3FrameInspector
 {
     private final static Logger mLog = LoggerFactory.getLogger(MP3FrameInspector.class);
 
-    public static void inspect(byte[] frames)
+    public static void inspect(List<byte[]> frames)
     {
-        if(frames == null || frames.length == 0)
+        if(frames.isEmpty())
         {
             return;
         }
 
-        if(frames.length % 144 != 0)
+        for(byte[] frame: frames)
         {
-            log("Frame byte array not multiple of 144 byte frame size - length:" + frames.length, frames);
-            return;
+            log("Frame: ", frame);
         }
 
-        //Check for erroneous frame sync
-        for(int x = 0; x < frames.length - 1; x++)
-        {
-            if(frames[x] == (byte)0xFF && (frames[x + 1] & 0xE0) == 0xE0 && (x % 144) != 0)
-            {
-                log("Bad frame sync detected at byte " + x + " in frame " + (x / 144), frames);
-                return;
-            }
-        }
+//        if(frames.length % 144 != 0)
+//        {
+//            log("Frame byte array not multiple of 144 byte frame size - length:" + frames.length, frames);
+//            return;
+//        }
+//
+//        //Check for erroneous frame sync
+//        for(int x = 0; x < frames.length - 1; x++)
+//        {
+//            if(frames[x] == (byte)0xFF && (frames[x + 1] & 0xE0) == 0xE0 && (x % 144) != 0)
+//            {
+//                log("Bad frame sync detected at byte " + x + " in frame " + (x / 144), frames);
+//                return;
+//            }
+//        }
 
         //Check MP3 headers
 
@@ -63,7 +70,7 @@ public class MP3FrameInspector
 
         for(int x = 0; x < frames.length; x++)
         {
-            if(x > 0 && x % 144 == 0)
+            if(x > 0 && x % 72 == 0)
             {
                 sb.append("\n");
                 sb.append(frameCounter++).append(" ");
@@ -80,7 +87,7 @@ public class MP3FrameInspector
         mLog.info("Starting ...");
         MP3SilenceGenerator gen = new MP3SilenceGenerator(AudioSampleRate.SR_8000, MP3Setting.getDefault());
 
-        byte[] audio = gen.generate(173);
+        List<byte[]> audio = gen.generate(173);
 
         inspect(audio);
 

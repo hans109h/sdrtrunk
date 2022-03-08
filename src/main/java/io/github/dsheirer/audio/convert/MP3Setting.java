@@ -31,7 +31,7 @@ import net.sourceforge.lame.mp3.Lame;
  */
 public enum MP3Setting
 {
-    CBR_16(false, 16, "CBR - 16kbps", "Constant Bit Rate (CBR) of 16 kbps"),
+    CBR_16(false, 16, "CBR - 16kbps (default)", "Constant Bit Rate (CBR) of 16 kbps"),
     CBR_32(false, 32, "CBR - 32kbps", "Constant Bit Rate (CBR) of 16 kbps"),
     ABR_56(true, 56, "ABR - 56 kbps", "Average Bit Rate (ABR) of 56 kbps"),
     VBR_5(true, Lame.QUALITY_MIDDLE, "VBR - Middle Quality", "Variable Bit Rate (VBR) using LAME middle quality"),
